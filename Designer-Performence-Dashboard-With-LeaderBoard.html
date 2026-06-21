@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Designer Performance Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Global Montserrat Font Enforcement */
+        * {
+            font-family: 'Montserrat', sans-serif !important;
+        }
+
+        body {
+            background-color: #fcfcfd;
+            color: #2D3748;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        :root {
+            --primary-orange: #fd7e14;
+            --hover-orange: #e0630c;
+            --light-orange-subtle: #fff4ec;
+            --border-muted: #e2e8f0;
+        }
+
+        /* Auth Screen Specific Layout */
+        .auth-container {
+            height: 100vh;
+            width: 100%;
+            background: radial-gradient(circle, rgba(253, 126, 20, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-container-wrap {
+            max-width: 420px;
+            width: 100%;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .auth-card {
+            background: #ffffff;
+            border: 1px solid var(--border-muted);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.03);
+            padding: 25px;
+        }
+
+        .auth-input {
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--border-muted);
+        }
+
+        .auth-input:focus {
+            border-color: var(--primary-orange);
+            box-shadow: 0 0 0 3px rgba(253, 126, 20, 0.15);
+        }
+
+        .auth-btn {
+            background-color: var(--primary-orange);
+            color: white;
+            font-weight: 700;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            transition: all 0.2s;
+        }
+
+        .auth-btn:hover {
+            background-color: var(--hover-orange);
+            color: white;
+        }
+
+        /* Original Dashboard Styles */
+        .bg-orange {
+            background-color: var(--primary-orange) !important;
+        }
+
+        .text-orange {
+            color: var(--primary-orange) !important;
+        }
+
+        .text-designer-highlight {
+            color: var(--primary-orange) !important;
+            font-weight: 700 !important;
+            white-space: nowrap !important;
+        }
+
+        .font-mono {
+            white-space: nowrap !important;
+        }
+
+        .table-responsive {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        #sidebar-wrapper {
+            width: 310px;
+            background-color: #ffffff;
+            border-right: 1px solid var(--border-muted);
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .main-content-panel {
+            flex: 1;
+            min-width: 0;
+            padding: 24px;
+        }
+
+        .sidebar-close-btn {
+            display: none;
+        }
+
+        @media (max-width: 991px) {
+            #sidebar-wrapper {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                z-index: 1050;
+                height: 100%;
+                margin-left: -310px;
+                box-shadow: none;
+            }
+
+            #sidebar-wrapper.show-mobile-sidebar {
+                margin-left: 0 !important;
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            }
+
+            .sidebar-close-btn {
+                display: inline-flex;
+            }
+        }
+
+        @media (min-width: 992px) {
+            #sidebar-wrapper.collapsed {
+                margin-left: -310px;
+            }
+        }
+
+        .filter-mode-container {
+            background: #edf2f7;
+            padding: 4px;
+            border-radius: 10px;
+            display: flex;
+            width: 100%;
+            gap: 5px;
+        }
+
+        .filter-mode-btn {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary-orange);
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .filter-mode-btn.active {
+            background: #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .filter-mode-btn:hover {
+            background-color: #fff;
+        }
+
+        .team-pill-scroller {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 12px;
+            background: #f8fafc;
+            border: 1px solid var(--border-muted);
+            border-radius: 12px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .team-pill-scroller::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .team-pill-scroller::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+
+        .team-pill {
+            white-space: nowrap;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #4a5568;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .team-pill:hover {
+            background-color: rgba(224, 99, 12, 0.3);
+            color: #4a5568;
+        }
+
+        .team-pill.active {
+            background: var(--primary-orange);
+            color: #ffffff;
+            box-shadow: 0 4px 10px rgba(253, 126, 20, 0.2);
+        }
+
+        .calendar-container {
+            background: #ffffff;
+            border: 1px solid var(--border-muted);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-header h6 {
+            font-weight: 800;
+            color: #1a202c;
+            letter-spacing: -0.02em;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            text-align: center;
+        }
+
+        .calendar-day-label {
+            font-weight: 800;
+            font-size: 0.7rem;
+            color: #a0aec0;
+            padding: 8px 0;
+            text-transform: uppercase;
+        }
+
+        .calendar-day {
+            padding: 12px 0;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #f8fafc;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+            position: relative;
+            color: #4a5568;
+        }
+
+        .calendar-day:hover {
+            background-color: var(--light-orange-subtle);
+            color: var(--primary-orange);
+        }
+
+        .calendar-day.active {
+            background-color: var(--primary-orange) !important;
+            color: #ffffff !important;
+            font-weight: 800;
+            box-shadow: 0 4px 12px rgba(253, 126, 20, 0.3);
+        }
+
+        .calendar-day .project-counter-dot {
+            position: absolute;
+            bottom: 3px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            font-weight: 800;
+            color: #ffffff;
+            background: var(--primary-orange);
+            padding: 1px 5px;
+            border-radius: 4px;
+            line-height: 1;
+        }
+
+        .calendar-day.active .project-counter-dot {
+            color: var(--primary-orange);
+            background: #ffffff;
+        }
+
+        .calendar-day.range-selected {
+            background: #fff4e6 !important;
+            color: #fd7e14 !important;
+            border: 1px solid #fdc38d !important;
+        }
+
+        .calendar-day.empty {
+            background: transparent;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .analytics-card {
+            background: #ffffff;
+            border: 1px solid var(--border-muted);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+            height: 100%;
+            border-left: 4px solid var(--primary-orange);
+        }
+
+        .chart-container-box {
+            background: #ffffff;
+            border: 1px solid var(--border-muted);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+            height: 100%;
+        }
+
+        .nav-pills {
+            background: #edf2f7;
+            padding: 6px;
+            border-radius: 12px;
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .nav-pills .nav-link {
+            color: #4a5568;
+            font-weight: 700;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 0.85rem;
+            border: none;
+            background: transparent;
+            transition: all 0.3s ease;
+        }
+
+        .nav-pills .nav-link.active {
+            background-color: #ffffff !important;
+            color: var(--primary-orange) !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .nav-pills .nav-link:hover {
+            background-color: #fff;
+            color: var(--primary-orange)
+        }
+
+        .table th {
+            font-weight: 800 !important;
+            color: #718096 !important;
+            white-space: nowrap !important;
+        }
+
+        .pagination .page-item .page-link {
+            color: #4a5568;
+            font-weight: 600;
+            border-color: var(--border-muted);
+        }
+
+        .pagination .page-item.active .page-link {
+            background-color: var(--primary-orange);
+            border-color: var(--primary-orange);
+            color: white;
+        }
+
+        footer {
+            background-color: #ffffff;
+            border-top: 1px solid var(--border-muted);
+            font-size: 0.85rem;
+            color: #4a5568;
+            font-weight: 600;
+            width: 100%;
+            margin-top: auto;
+            position: relative;
+            z-index: 10;
+        }
+
+        .footer-credit-text {
+            letter-spacing: 0.01em;
+        }
+
+        .footer-credit-text strong {
+            color: var(--primary-orange);
+            font-weight: 700 !important;
+        }
+
+        .social-box-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background-color: #f1f5f9;
+            color: #718096;
+            border-radius: 8px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+        }
+
+        .social-box-icon:hover {
+            background-color: var(--primary-orange);
+            color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(253, 126, 20, 0.25);
+        }
+
+        /* Leaderboard Specific Module Styles */
+        .ranking-card {
+            background: #ffffff;
+            border: 1px solid var(--border-muted);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+        }
+
+        .rank-podium {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 24px;
+            padding: 30px 0 15px 0;
+        }
+
+        .podium-item {
+            text-align: center;
+            position: relative;
+            flex: 1;
+            max-width: 160px;
+        }
+
+        .podium-avatar-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+
+        .podium-avatar {
+            width: 68px;
+            height: 68px;
+            background: var(--light-orange-subtle);
+            color: var(--primary-orange);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid var(--border-muted);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .podium-item.first .podium-avatar {
+            width: 95px;
+            height: 95px;
+            border-color: #ffd700;
+            background: #fffbeb;
+        }
+
+        .podium-item.second .podium-avatar {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+        }
+
+        .podium-item.third .podium-avatar {
+            border-color: #cd7f32;
+            background: #fdf6f0;
+        }
+
+        .rank-badge {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #4a5568;
+            color: #ffffff;
+            font-size: 0.65rem;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .podium-item.first .rank-badge {
+            background: var(--primary-orange);
+        }
+
+        .crown-icon {
+            position: absolute;
+            top: -26px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffd700;
+        }
+
+        .ranking-list-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 18px;
+            background: #f8fafc;
+            border: 1px solid var(--border-muted);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            transition: background-color 0.2s ease;
+        }
+
+        .ranking-list-item:hover {
+            background: var(--light-orange-subtle);
+        }
+
+        .rank-num-label {
+            width: 35px;
+            font-weight: 800;
+            color: #718096;
+            font-size: 0.85rem;
+        }
+
+        .rank-common-avatar {
+            width: 32px;
+            height: 32px;
+            background: #edf2f7;
+            color: #718096;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="app-root" class="d-flex flex-column flex-grow-1">
+        <div class="auth-container">
+            <div class="auth-container-wrap">
+                <div class="text-center mb-4">
+                    <h4 class="fw-bold text-orange d-inline-flex align-items-center gap-2 m-0"
+                        style="font-weight: 900 !important; letter-spacing: -0.04em;">
+                        <span class="p-2 bg-orange text-white rounded-3 d-inline-block"
+                            style="line-height:0; box-shadow: 0 4px 10px rgba(253, 126, 20, 0.3);">
+                            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M11 3.055A9.003 9.003 0 1020.945 13H11V3.055z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                            </svg>
+                        </span>
+                        WORKFLOW INSIGHTS
+                    </h4>
+                    <p class="text-muted small fw-600 m-0 mt-2" style="font-size: 0.75rem; letter-spacing: 0.02em;">
+                        ACCESS PORTAL</p>
+                </div>
+
+                <div class="auth-card">
+                    <div id="auth-error-msg" class="alert alert-danger d-none py-2 px-3 small fw-bold mb-3"
+                        style="border-radius:8px; font-size:0.8rem;">
+                        Invalid identity keys assigned.
+                    </div>
+                    <form id="login-form">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-uppercase text-secondary"
+                                style="font-size: 0.65rem; letter-spacing: 0.05em;">User ID</label>
+                            <input type="text" id="auth-userid" class="form-control auth-input"
+                                placeholder="Enter User ID" required autocomplete="username">
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-uppercase text-secondary"
+                                style="font-size: 0.65rem; letter-spacing: 0.05em;">Password</label>
+                            <input type="password" id="auth-password" class="form-control auth-input"
+                                placeholder="Enter Password" required autocomplete="current-password">
+                        </div>
+                        <button type="submit" class="btn auth-btn w-100 text-uppercase tracking-wider">Unlock
+                            Dashboard</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            // Configuration Credentials (Edit these local strings as needed)
+            const ACCESS_ID = "neodesigner";
+            const ACCESS_KEY = "#neodesigner123";
+
+            // Encapsulated secure HTML template component block
+            const secureDashboardTemplateMarkup = `
+    <div class="d-flex flex-grow-1" id="wrapper">
+        <div id="sidebar-wrapper" class="p-4 flex-shrink-0">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h5 class="fw-bold text-orange d-flex align-items-center gap-2 m-0"
+                        style="font-weight: 900 !important; letter-spacing: -0.04em;">
+                        <span class="p-2 bg-orange text-white rounded-3 d-inline-block"
+                            style="line-height:0; box-shadow: 0 4px 10px rgba(253, 126, 20, 0.3);">
+                            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M11 3.055A9.003 9.003 0 1020.945 13H11V3.055z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                            </svg>
+                        </span>
+                        WORKFLOW INSIGHTS
+                    </h5>
+                    <p class="text-muted small fw-600 m-0 mt-2" style="font-size: 0.75rem; letter-spacing: 0.02em;">
+                        PERFORMANCE DASHBOARD</p>
+                </div>
+                <button
+                    class="btn btn-light border p-2 rounded-3 sidebar-close-btn align-items-center justify-content-center"
+                    id="menu-close-internal" style="background: #f8fafc;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                            d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <hr class="my-4" style="color: var(--border-muted);">
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-uppercase text-secondary mb-2"
+                    style="font-size: 0.7rem; letter-spacing: 0.05em;">Spreadsheet Tracking Report</label>
+                <div class="p-4 border border-2 border-dashed rounded-3 text-center bg-light"
+                    style="cursor: pointer; position: relative;">
+                    <svg class="text-orange mb-2" width="36" height="36" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                        </path>
+                    </svg>
+                    <p class="small text-secondary fw-600 m-0 px-1 text-truncate" id="file-name"
+                        style="font-size: 0.8rem;">Click to Upload Excel Report</p>
+                    <input id="excel-file" type="file" accept=".xlsx, .xls, .csv"
+                        class="position-absolute top-0 start-0 w-100 h-100 opacity-0" style="cursor: pointer;" />
+                </div>
+            </div>
+            <div id="filter-wrapper" class="opacity-50 pointer-events-none">
+                <hr class="my-4" style="color: var(--border-muted);">
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-uppercase text-secondary mb-2"
+                        style="font-size: 0.7rem; letter-spacing: 0.05em;">Filter Configuration Mode</label>
+                    <div class="filter-mode-container">
+                        <button type="button" class="filter-mode-btn active" data-mode="standard">Standard</button>
+                        <button type="button" class="filter-mode-btn" data-mode="daterange">Date Range</button>
+                    </div>
+                </div>
+                <div id="standard-filters-group">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary"
+                            style="font-size: 0.7rem; letter-spacing: 0.05em;">Select Allocation Year</label>
+                        <select id="year-filter" class="form-select fw-600 text-dark"
+                            style="font-size: 0.85rem; border-radius: 8px;">
+                            <option value="all">All Available Years</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary"
+                            style="font-size: 0.7rem; letter-spacing: 0.05em;">Select Allocation Month</label>
+                        <select id="month-filter" class="form-select fw-600 text-dark"
+                            style="font-size: 0.85rem; border-radius: 8px;">
+                            <option value="all">All Months</option>
+                            <option value="01">January</option>
+                            <option value="02">February</option>
+                            <option value="03">March</option>
+                            <option value="04">April</option>
+                            <option value="05">May</option>
+                            <option value="06">June</option>
+                            <option value="07">July</option>
+                            <option value="08">August</option>
+                            <option value="09">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="daterange-filters-group" class="d-none">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary"
+                            style="font-size: 0.7rem; letter-spacing: 0.05em;">From Date (Start)</label>
+                        <input type="date" id="start-date-input" class="form-select fw-600 text-dark"
+                            style="font-size: 0.85rem; border-radius: 8px;" value="2026-04-02">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary"
+                            style="font-size: 0.7rem; letter-spacing: 0.05em;">To Date (End)</label>
+                        <input type="date" id="end-date-input" class="form-select fw-600 text-dark"
+                            style="font-size: 0.85rem; border-radius: 8px;" value="2026-04-06">
+                    </div>
+                </div>
+                <button id="clear-filters-btn" class="btn btn-sm btn-outline-secondary w-100 fw-bold d-none"
+                    style="border-radius: 8px;">Reset Filter Frames</button>
+            </div>
+        </div>
+
+        <div class="main-content-panel p-3 p-md-4 p-xl-5">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <button class="btn btn-white border shadow-sm p-2 rounded-3" id="menu-toggle"
+                    style="background:#ffffff; z-index: 100; position: relative;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+                <span class="badge bg-white border text-dark p-2.5 fw-bold font-mono text-truncate max-mw-100 ms-2"
+                    id="current-filter-status" style="border-radius: 8px; font-size:0.8rem;">Data View Scope: Awaiting
+                    Dataset Upload</span>
+            </div>
+            <div class="mb-4" id="team-pillbox-section" style="display:none;">
+                <label class="form-label small fw-bold text-uppercase text-secondary mb-2"
+                    style="font-size: 0.7rem; letter-spacing: 0.05em;">Filter by Individual Team Member</label>
+                <div class="team-pill-scroller" id="team-pills-root">
+                </div>
+            </div>
+            <div class="row g-3 g-xl-4 mb-4">
+                <div class="col-12 col-md-3">
+                    <div class="analytics-card">
+                        <div class="small fw-bold text-uppercase tracking-wider"
+                            style="color:#a0aec0; font-size:0.7rem;">Total Matching Projects</div>
+                        <div class="h2 fw-bold m-0 mt-2 font-mono text-dark" id="stat-total"
+                            style="font-weight: 800 !important;">0</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="analytics-card">
+                        <div class="small fw-bold text-uppercase tracking-wider"
+                            style="color:#a0aec0; font-size:0.7rem;">Projects Handled by 1 Designer</div>
+                        <div class="h2 fw-bold m-0 mt-2 font-mono text-orange" id="stat-designers"
+                            style="font-weight: 800 !important;">0</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="analytics-card" style="border-left-color: #0d6efd;">
+                        <div class="small fw-bold text-uppercase tracking-wider"
+                            style="color:#a0aec0; font-size:0.7rem;">Projects Handled by a Team</div>
+                        <div class="h2 fw-bold m-0 mt-2 font-mono text-primary" id="stat-combined"
+                            style="font-weight: 800 !important;">0</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="analytics-card" style="border-left: 4px solid var(--primary-orange);">
+                        <div class="small fw-bold text-uppercase tracking-wider"
+                            style="color:#a0aec0; font-size:0.7rem;">Total Involvement Effort</div>
+                        <div class="h2 fw-bold m-0 mt-2 font-mono text-dark" id="stat-effort"
+                            style="font-weight: 800 !important;">0.00</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-4 d-none" id="ranking-system-panel-wrapper">
+                <div class="col-12">
+                    <div class="ranking-card">
+                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-3 mb-4">
+                            <div>
+                                <h6 class="fw-bold text-uppercase m-0 text-dark" style="letter-spacing: 0.05em; font-size: 0.85rem;">Designer Standings Leaderboard</h6>
+                                <p class="text-muted m-0 mt-1" style="font-size: 0.7rem; font-weight: 500;">Ranked by total project completion density metrics</p>
+                            </div>
+                            <div class="nav nav-pills" id="rankTimeScopeFilters">
+                                <button class="nav-link active py-1.5 px-3" data-rank-filter="all" style="font-size:0.75rem;">All Time</button>
+                                <button class="nav-link py-1.5 px-3" data-rank-filter="month" style="font-size:0.75rem;">This Month</button>
+                                <button class="nav-link py-1.5 px-3" data-rank-filter="week" style="font-size:0.75rem;">This Week</button>
+                            </div>
+                        </div>
+                        
+                        <div class="row align-items-center justify-content-center">
+                            <div class="col-12 col-xl-6">
+                                <div id="ranking-podium-root" class="rank-podium"></div>
+                            </div>
+                            <div class="col-12 col-xl-6">
+                                <div id="ranking-list-root" style="max-height: auto; overflow-y: auto; padding-right: 4px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-xl-4">
+                    <div class="chart-container-box d-none" id="individual-card-container">
+                        <h6 class="small fw-bold text-uppercase text-secondary mb-3">Individual Assignments Volume</h6>
+                        <div style="position: relative; height: 360px; width: 100%;">
+                            <canvas id="individual-chart-canvas"></canvas>
+                        </div>
+                    </div>
+                    <div class="analytics-card flex-grow-1 d-flex align-items-center justify-content-center py-5 text-muted border-dashed"
+                        id="individual-placeholder" style="border: 2px dashed var(--border-muted); border-radius:16px;">
+                        <span class="fw-500 text-center px-2">Upload data report to view designer chart profile
+                            allocation splits.</span>
+                    </div>
+                </div>
+                <div class="col-12 col-xl-5">
+                    <div class="chart-container-box d-none" id="combined-card-container">
+                        <h6 class="small fw-bold text-uppercase text-secondary mb-3">Combined Team Split Workload</h6>
+                        <div style="position: relative; height: 360px; width: 100%;">
+                            <canvas id="combined-chart-canvas"></canvas>
+                        </div>
+                    </div>
+                    <div class="analytics-card flex-grow-1 d-flex align-items-center justify-content-center py-5 text-muted border-dashed"
+                        id="combined-placeholder" style="border: 2px dashed var(--border-muted); border-radius:16px;">
+                        <span class="fw-500 text-center px-2">Upload data report to view designer chart profile
+                            allocation splits.</span>
+                    </div>
+                </div>
+                <div class="col-12 col-xl-3">
+                    <div class="calendar-container h-100">
+                        <div class="calendar-header">
+                            <h6 class="m-0 fw-bold text-uppercase" id="calendar-month-year-label">Project Deadline
+                                Distribution</h6>
+                            <div class="d-flex gap-1">
+                                <button id="prev-month-btn" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fw-bold"
+                                    style="border-radius:6px;">&lt;</button>
+                                <button id="next-month-btn" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fw-bold"
+                                    style="border-radius:6px;">&gt;</button>
+                            </div>
+                        </div>
+                        <div class="calendar-grid mb-2">
+                            <div class="calendar-day-label">Su</div>
+                            <div class="calendar-day-label">Mo</div>
+                            <div class="calendar-day-label">Tu</div>
+                            <div class="calendar-day-label">We</div>
+                            <div class="calendar-day-label">Th</div>
+                            <div class="calendar-day-label">Fr</div>
+                            <div class="calendar-day-label">Sa</div>
+                        </div>
+                        <div class="calendar-grid" id="calendar-days-root"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-4">
+                <div class="nav nav-pills" id="dashboardTabs" role="tablist">
+                    <button class="nav-link active" data-tab="all" type="button">All Together</button>
+                    <button class="nav-link" data-tab="combined" type="button">Combined Deadlines</button>
+                    <button class="nav-link" data-tab="individual" type="button">Individual Deadlines</button>
+                </div>
+            </div>
+            <div class="card border rounded-4 overflow-hidden shadow-sm bg-white mb-4"
+                style="border-color: var(--border-muted) !important;">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle m-0" style="min-width: 800px;">
+                        <thead class="table-light border-bottom text-uppercase tracking-wider"
+                            style="font-size:0.7rem;">
+                            <tr>
+                                <th class="py-3.5 px-4">Project Name Reference</th>
+                                <th class="py-3.5 px-4">Target Deadline Date</th>
+                                <th class="py-3.5 px-4">Final Delivery Date</th>
+                                <th class="py-3.5 px-4">Assigned Designer</th>
+                                <th class="py-3.5 px-4 text-end">Assigned Developer/Coder</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-rows-root" class="fw-600 text-secondary-emphasis"
+                            style="font-size: 0.85rem;">
+                            <tr>
+                                <td colspan="5" class="py-5 text-center text-muted font-italic">No database row frames
+                                    found. Choose an operational Excel report document sheet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center py-3 px-4 d-none"
+                    id="table-pagination-footer">
+                    <div class="small text-muted fw-bold" id="pagination-info-text">Showing 1 to 20 of 0 entries</div>
+                    <nav aria-label="Table navigation matching pages">
+                        <ul class="pagination pagination-sm m-0" id="pagination-controls-root"></ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer class="py-3 px-4">
+        <div
+            class="container-fluid p-0 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            <div class="footer-credit-text text-center text-md-start">
+                Copyright 2026. Developed by <strong>Samanway Koley</strong>.
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <a href="https://www.linkedin.com/in/samanway-koley" target="_blank" class="social-box-icon"
+                    title="Connect on LinkedIn">
+                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+                    </svg>
+                </a>
+                <a href="mailto:samanway.koley@gmail.com" class="social-box-icon" title="Email Samanway">
+                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M22 4H2C.9 4 0 4.9 0 6v12c0 1.1.9 2 2 2h20c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM2 6l10 6.5L22 6v1.5L12 14 2 7.5V6zm0 12V9.5l10 6 10-6V18H2z" />
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+    `;
+
+            // Form Submit Interceptor Module Routing
+            $("#login-form").on("submit", function (e) {
+                e.preventDefault();
+
+                const inputUser = $("#auth-userid").val().trim();
+                const inputPass = $("#auth-password").val();
+
+                if (inputUser === ACCESS_ID && inputPass === ACCESS_KEY) {
+                    // Safe execution flow routing match verified. Inject UI matrix blocks.
+                    $("#app-root").html(secureDashboardTemplateMarkup);
+
+                    // Fire core dashboard application logic initialization callbacks loop
+                    initializeDashboardCoreEngine();
+                } else {
+                    $("#auth-error-msg").removeClass("d-none");
+                    $("#auth-password").val("").focus();
+                }
+            });
+
+            // Re-encapsulated core logic functions framework array execution initialization block
+            function initializeDashboardCoreEngine() {
+                let masterSpreadsheetRecordsDataset = [];
+                let activeTab = 'all';
+                let activeFilterMode = 'standard';
+                let selectedStaffFilterToken = 'all';
+                let individualChartInstance = null;
+                let combinedChartInstance = null;
+                let currentDayFocusExplicitKeyStamp = null;
+                let currentPageIndex = 1;
+                const rowsCountPerPageLimit = 20;
+                let globallyCalculatedRowsFilteredArray = [];
+                let calendarFocusTrackingTimestamp = new Date(2026, 0, 1);
+                let currentRankingTemporalFilterScope = 'all';
+
+                function toggleSidebarState() {
+                    if ($(window).width() <= 991) {
+                        $("#sidebar-wrapper").toggleClass("show-mobile-sidebar");
+                    } else {
+                        $("#sidebar-wrapper").toggleClass("collapsed");
+                    }
+                    setTimeout(() => { resizeAllCharts(); }, 310);
+                }
+
+                $("#menu-toggle").click(function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleSidebarState();
+                });
+
+                $("#menu-close-internal").click(function (e) {
+                    e.preventDefault();
+                    $("#sidebar-wrapper").removeClass("show-mobile-sidebar");
+                });
+
+                $(document).on('click', function (e) {
+                    if ($(window).width() <= 991) {
+                        if (!$(e.target).closest('#sidebar-wrapper, #menu-toggle').length) {
+                            $("#sidebar-wrapper").removeClass("show-mobile-sidebar");
+                        }
+                    }
+                });
+
+                $(window).on('resize', function () {
+                    resizeAllCharts();
+                    if ($(window).width() > 991) {
+                        $("#sidebar-wrapper").removeClass("show-mobile-sidebar");
+                    }
+                });
+
+                function resizeAllCharts() {
+                    if (individualChartInstance) individualChartInstance.resize();
+                    if (combinedChartInstance) combinedChartInstance.resize();
+                }
+
+                function cleanIndividualNameStrings(rawText) {
+                    let text = String(rawText).trim();
+                    if (!text || text.toLowerCase() === 'none' || text.toLowerCase() === 'null') return "";
+                    if (text.toLowerCase() === 'samanway' || text.toLowerCase() === 'somonway') return 'Samanway';
+                    if (text.toLowerCase() === 'sumona' || text.toLowerCase() === 'sumana') return 'Sumana';
+                    if (text.toLowerCase() === 'sanchita') return 'Sanchita';
+                    if (text.toLowerCase() === 'bikas' || text.toLowerCase() === 'bikash') return 'Bikash';
+                    if (text.toLowerCase() === 'abir') return 'Abir';
+                    if (text.toLowerCase() === 'nitu') return 'Nitu';
+                    if (text.toLowerCase() === 'priyanka') return 'Priyanka';
+                    if (text.toLowerCase() === 'rabi') return 'Rabi';
+                    if (text.toLowerCase() === 'subhasish') return 'Subhasish';
+                    return text.charAt(0).toUpperCase() + text.slice(1);
+                }
+
+                function resolveTeamTokenGroupSignatures(compositeValueString) {
+                    if (!compositeValueString) return "";
+                    let components = compositeValueString.split('&').map(t => t.trim()).filter(t => t !== "");
+                    let cleanResults = components.map(item => cleanIndividualNameStrings(item)).filter(m => m !== "");
+                    if (cleanResults.length === 0) return "";
+                    return cleanResults.join(' & ');
+                }
+
+                function parseAbsoluteExcelDateStringFields(rawFieldCell) {
+                    if (!rawFieldCell && rawFieldCell !== 0) return { year: null, month: null, day: null, fullDate: null, visualDate: "—" };
+                    let baseText = String(rawFieldCell).trim().split(' ')[0];
+                    if (/^\d{5}(\.\d+)?$/.test(baseText)) {
+                        let serialNum = parseFloat(baseText);
+                        let msPerDay = 24 * 60 * 60 * 1000;
+                        let calculatedDateObj = new Date(Date.UTC(1899, 11, 30) + (serialNum * msPerDay));
+                        let yr = calculatedDateObj.getUTCFullYear().toString();
+                        let mo = String(calculatedDateObj.getUTCMonth() + 1).padStart(2, '0');
+                        let dy = String(calculatedDateObj.getUTCDate()).padStart(2, '0');
+                        let outStr = `${yr}-${mo}-${dy}`;
+                        return { year: yr, month: mo, day: dy, fullDate: outStr, visualDate: outStr };
+                    }
+                    const standardPatternMatch = baseText.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+                    if (standardPatternMatch) {
+                        const yr = standardPatternMatch[1];
+                        const mo = String(standardPatternMatch[2]).padStart(2, '0');
+                        const dy = String(standardPatternMatch[3]).padStart(2, '0');
+                        const outStr = `${yr}-${mo}-${dy}`;
+                        return { year: yr, month: mo, day: dy, fullDate: outStr, visualDate: outStr };
+                    }
+                    const dotPatternMatch = baseText.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
+                    if (dotPatternMatch) {
+                        let yrSegment = dotPatternMatch[3];
+                        if (yrSegment.length === 2) yrSegment = "20" + yrSegment;
+                        const mSegment = String(dotPatternMatch[2]).padStart(2, '0');
+                        const dSegment = String(dotPatternMatch[1]).padStart(2, '0');
+                        const outStr = `${yrSegment}-${mSegment}-${dSegment}`;
+                        return { year: yrSegment, month: mSegment, day: dSegment, fullDate: outStr, visualDate: outStr };
+                    }
+                    return { year: null, month: null, day: null, fullDate: null, visualDate: baseText || "—" };
+                }
+
+                $('.filter-mode-btn').on('click', function () {
+                    $('.filter-mode-btn').removeClass('active');
+                    $(this).addClass('active');
+                    activeFilterMode = $(this).data('mode');
+                    if (activeFilterMode === 'standard') {
+                        $('#standard-filters-group').removeClass('d-none');
+                        $('#daterange-filters-group').addClass('d-none');
+                    } else {
+                        $('#standard-filters-group').addClass('d-none');
+                        $('#daterange-filters-group').removeClass('d-none');
+                    }
+                    currentDayFocusExplicitKeyStamp = null;
+                    if (activeFilterMode === 'daterange') {
+                        const startDate = $('#start-date-input').val();
+                        if (startDate) {
+                            const parts = startDate.split('-');
+                            calendarFocusTrackingTimestamp = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                        }
+                    }
+                    renderLargeInteractiveCalendarView();
+                    processAggregatedCalculationRoutines();
+                });
+
+                $('#start-date-input, #end-date-input').on('change input', function () {
+                    if (activeFilterMode !== 'daterange') return;
+                    const startDate = $('#start-date-input').val();
+                    if (startDate) {
+                        const parts = startDate.split('-');
+                        calendarFocusTrackingTimestamp = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                    }
+                    currentDayFocusExplicitKeyStamp = null;
+                    renderLargeInteractiveCalendarView();
+                    processAggregatedCalculationRoutines();
+                });
+
+                $('#excel-file').on('change', function (e) {
+                    const targetDocRefFile = e.target.files[0];
+                    if (!targetDocRefFile) return;
+                    $('#file-name').text(targetDocRefFile.name).removeClass('text-secondary').addClass('text-orange');
+                    const matrixReader = new FileReader();
+                    matrixReader.onload = function (e) {
+                        try {
+                            const internalArrayBufferBytes = new Uint8Array(e.target.result);
+                            const parsedWorkbookStructure = XLSX.read(internalArrayBufferBytes, { type: 'array', raw: true });
+                            const dynamicTargetSheetLabel = parsedWorkbookStructure.SheetNames.includes('Sheet1') ? 'Sheet1' : parsedWorkbookStructure.SheetNames[0];
+                            const readingSheetRefObject = parsedWorkbookStructure.Sheets[dynamicTargetSheetLabel];
+                            const matrixGridRows = XLSX.utils.sheet_to_json(readingSheetRefObject, { header: 1, defval: "" });
+                            let headerRowIndex = -1;
+                            let columnIndexMapping = { projectName: -1, designer: -1, coder: -1, deadline: -1, deliveryDate: -1 };
+                            for (let r = 0; r < matrixGridRows.length; r++) {
+                                const columns = matrixGridRows[r].map(c => String(c).trim().toLowerCase());
+                                const foundIndex = columns.findIndex(text => text === 'project name');
+                                if (foundIndex !== -1) {
+                                    headerRowIndex = r;
+                                    columns.forEach((colText, cIdx) => {
+                                        if (colText === 'project name') columnIndexMapping.projectName = cIdx;
+                                        if (colText === 'designer') columnIndexMapping.designer = cIdx;
+                                        if (colText === 'coder' || colText === 'developer') columnIndexMapping.coder = cIdx;
+                                        if (colText === 'deadline') columnIndexMapping.deadline = cIdx;
+                                        if (colText === 'delivery date' || colText === 'deliverydate') columnIndexMapping.deliveryDate = cIdx;
+                                    });
+                                    break;
+                                }
+                            }
+                            if (headerRowIndex === -1) {
+                                alert("Error reading file structure. Please ensure your Excel spreadsheet includes a column explicitly named 'Project Name'.");
+                                return;
+                            }
+                            masterSpreadsheetRecordsDataset = [];
+                            for (let r = headerRowIndex + 1; r < matrixGridRows.length; r++) {
+                                const dataRow = matrixGridRows[r];
+                                if (!dataRow || dataRow.length === 0) continue;
+                                const projValue = columnIndexMapping.projectName !== -1 ? dataRow[columnIndexMapping.projectName] : "";
+                                if (!projValue || String(projValue).trim() === "") continue;
+                                masterSpreadsheetRecordsDataset.push({
+                                    projectName: projValue,
+                                    designer: columnIndexMapping.designer !== -1 ? dataRow[columnIndexMapping.designer] : "",
+                                    coder: columnIndexMapping.coder !== -1 ? dataRow[columnIndexMapping.coder] : "",
+                                    deadline: columnIndexMapping.deadline !== -1 ? dataRow[columnIndexMapping.deadline] : "",
+                                    deliveryDate: columnIndexMapping.deliveryDate !== -1 ? dataRow[columnIndexMapping.deliveryDate] : ""
+                                });
+                            }
+                            if (masterSpreadsheetRecordsDataset.length === 0) {
+                                alert("Error reading file structure. Columns verified, but zero record rows could be extracted.");
+                                return;
+                            }
+
+                            $('#ranking-system-panel-wrapper').removeClass('d-none');
+                            buildConnectedDashboardFiltersOptions();
+                            generateHorizontalTeamPillboxScroller();
+                        } catch (err) {
+                            console.error("Excel Ingestion breakdown tracking prevented:", err);
+                            alert("Error processing file framework layer logic.");
+                        }
+                    };
+                    matrixReader.readAsArrayBuffer(targetDocRefFile);
+                });
+
+                function generateHorizontalTeamPillboxScroller() {
+                    const uniqueStaffSet = new Set();
+                    masterSpreadsheetRecordsDataset.forEach(row => {
+                        if (row.designer) {
+                            let names = String(row.designer).split('&').map(n => n.trim());
+                            names.forEach(name => {
+                                let singleClean = cleanIndividualNameStrings(name);
+                                if (singleClean && singleClean !== "—" && singleClean.toLowerCase() !== 'unassigned') {
+                                    uniqueStaffSet.add(singleClean);
+                                }
+                            });
+                        }
+                    });
+                    const preferredOrder = ['Samanway', 'Priyanka', 'Sumana', 'Rabi', 'Nitu', 'Sanchita', 'Bikash', 'Abir'];
+                    const sortedStaffArray = preferredOrder.filter(name => uniqueStaffSet.has(name));
+                    const container = $('#team-pills-root');
+                    container.empty();
+                    container.append(`<button type="button" class="team-pill active" data-staff="all">All Designers</button>`);
+                    sortedStaffArray.forEach(staff => {
+                        container.append(`<button type="button" class="team-pill" data-staff="${staff}">${staff}</button>`);
+                    });
+
+                    $('.team-pill').on('click', function () {
+                        $('.team-pill').removeClass('active');
+                        $(this).addClass('active');
+                        selectedStaffFilterToken = $(this).data('staff');
+                        processAggregatedCalculationRoutines();
+                    });
+                    $('#team-pillbox-section').show();
+                }
+
+                function buildConnectedDashboardFiltersOptions() {
+                    const uniqueChronologicalYearsSet = new Set();
+                    masterSpreadsheetRecordsDataset.forEach(row => {
+                        const { year } = parseAbsoluteExcelDateStringFields(row.deadline);
+                        if (year) uniqueChronologicalYearsSet.add(year);
+                    });
+                    $('#year-filter').html('<option value="all">All Available Years</option>');
+                    Array.from(uniqueChronologicalYearsSet).sort().forEach(yr => {
+                        $('#year-filter').append(`<option value="${yr}">${yr}</option>`);
+                    });
+                    $('#filter-wrapper').removeClass('opacity-50').removeClass('pointer-events-none');
+                    if ($(`#year-filter option[value='2026']`).length > 0) {
+                        calendarFocusTrackingTimestamp = new Date(2026, 0, 1);
+                        $('#year-filter').val('2026');
+                        $('#month-filter').val('all');
+                    } else {
+                        calendarFocusTrackingTimestamp = new Date();
+                    }
+                    renderLargeInteractiveCalendarView();
+                    processAggregatedCalculationRoutines();
+                }
+
+                $('#year-filter, #month-filter').on('change', function () {
+                    const yVal = $('#year-filter').val();
+                    const mVal = $('#month-filter').val();
+                    currentDayFocusExplicitKeyStamp = null;
+                    if (yVal !== 'all' && mVal !== 'all') {
+                        calendarFocusTrackingTimestamp = new Date(parseInt(yVal), parseInt(mVal) - 1, 1);
+                    } else if (yVal !== 'all') {
+                        calendarFocusTrackingTimestamp = new Date(parseInt(yVal), calendarFocusTrackingTimestamp.getMonth(), 1);
+                    } else if (mVal !== 'all') {
+                        calendarFocusTrackingTimestamp = new Date(calendarFocusTrackingTimestamp.getFullYear(), parseInt(mVal) - 1, 1);
+                    }
+                    renderLargeInteractiveCalendarView();
+                    processAggregatedCalculationRoutines();
+                });
+
+                $('#prev-month-btn').on('click', function () {
+                    calendarFocusTrackingTimestamp.setMonth(calendarFocusTrackingTimestamp.getMonth() - 1);
+                    currentDayFocusExplicitKeyStamp = null;
+                    renderLargeInteractiveCalendarView();
+                    processAggregatedCalculationRoutines();
+                });
+
+                $('#next-month-btn').on('click', function () {
+                    calendarFocusTrackingTimestamp.setMonth(calendarFocusTrackingTimestamp.getMonth() + 1);
+                    currentDayFocusExplicitKeyStamp = null;
+                    renderLargeInteractiveCalendarView();
+                    processAggregatedCalculationRoutines();
+                });
+
+                $('#clear-filters-btn').on('click', function () {
+                    currentDayFocusExplicitKeyStamp = null;
+                    selectedStaffFilterToken = 'all';
+                    $('.team-pill').removeClass('active');
+                    $('[data-staff="all"]').addClass('active');
+                    if ($(`#year-filter option[value='2026']`).length > 0) {
+                        calendarFocusTrackingTimestamp = new Date(2026, 0, 1);
+                        $('#year-filter').val('2026');
+                        $('#month-filter').val('all');
+                    } else {
+                        calendarFocusTrackingTimestamp = new Date();
+                    }
+                    renderLargeInteractiveCalendarView();
+                    processAggregatedCalculationRoutines();
+                });
+
+                $('.nav-link').on('click', function () {
+                    // Filter out ranking clicks from global dashboard pills handler
+                    if ($(this).attr('data-rank-filter')) return;
+                    $('.nav-link').not('[data-rank-filter]').removeClass('active');
+                    $(this).addClass('active');
+                    activeTab = $(this).data('tab');
+                    processAggregatedCalculationRoutines();
+                });
+
+                // Leaderboard Interactive Trigger Subroutine
+                $(document).on('click', '[data-rank-filter]', function (e) {
+                    e.preventDefault();
+                    $('[data-rank-filter]').removeClass('active');
+                    $(this).addClass('active');
+                    currentRankingTemporalFilterScope = $(this).data('rank-filter');
+                    computeAndRenderLeaderboardGrid();
+                });
+
+                function computeAndRenderLeaderboardGrid() {
+                    if (!masterSpreadsheetRecordsDataset.length) return;
+
+                    const leaderboardDataMap = {};
+                    let scopeAggregationTotal = 0;
+                    const contextReferenceDate = new Date(2026, 5, 8); // System Timeline Constraint
+
+                    masterSpreadsheetRecordsDataset.forEach(row => {
+                        const { fullDate } = parseAbsoluteExcelDateStringFields(row.deadline);
+                        if (!fullDate) return;
+
+                        const rowDateInstance = new Date(fullDate);
+                        let isEligibleDate = true;
+
+                        if (currentRankingTemporalFilterScope === 'month') {
+                            isEligibleDate = rowDateInstance.getMonth() === contextReferenceDate.getMonth() &&
+                                rowDateInstance.getFullYear() === contextReferenceDate.getFullYear();
+                        } else if (currentRankingTemporalFilterScope === 'week') {
+                            const baselineLimit = new Date(contextReferenceDate);
+                            baselineLimit.setDate(contextReferenceDate.getDate() - 7);
+                            isEligibleDate = rowDateInstance >= baselineLimit && rowDateInstance <= contextReferenceDate;
+                        }
+
+                        if (isEligibleDate) {
+                            const allocationTokens = row.designer ? String(row.designer).split('&').map(n => cleanIndividualNameStrings(n)) : ["Unassigned"];
+                            allocationTokens.forEach(token => {
+                                if (token && token !== "Unassigned" && token !== "—") {
+                                    leaderboardDataMap[token] = (leaderboardDataMap[token] || 0) + 1;
+                                    scopeAggregationTotal++;
+                                }
+                            });
+                        }
+                    });
+
+                    const descendingSortedRanks = Object.entries(leaderboardDataMap).sort((a, b) => b[1] - a[1]);
+
+                    const podiumContainerNode = $('#ranking-podium-root').empty();
+                    const standardListContainerNode = $('#ranking-list-root').empty();
+
+                    // Render Podium Element Items (Arranged symmetrically: 2nd, 1st, 3rd)
+                    const structuralPodiumSequence = [1, 0, 2];
+                    structuralPodiumSequence.forEach(positionIndex => {
+                        const recordData = descendingSortedRanks[positionIndex];
+                        if (recordData) {
+                            const [staffName, totalCount] = recordData;
+                            const sharePercentage = scopeAggregationTotal > 0 ? ((totalCount / scopeAggregationTotal) * 100).toFixed(1) : "0.0";
+
+                            let placementClass = "second";
+                            let visualOrdering = "order-1";
+                            let numericBadge = "#2";
+                            let accessoryCrown = "";
+
+                            if (positionIndex === 0) {
+                                placementClass = "first";
+                                visualOrdering = "order-2";
+                                numericBadge = "#1";
+                                accessoryCrown = `
+                                    <div class="crown-icon">
+                                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5Z"/>
+                                        </svg>
+                                    </div>`;
+                            } else if (positionIndex === 2) {
+                                placementClass = "third";
+                                visualOrdering = "order-3";
+                                numericBadge = "#3";
+                            }
+
+                            podiumContainerNode.append(`
+                                <div class="podium-item ${placementClass} ${visualOrdering}">
+                                    ${accessoryCrown}
+                                    <div class="podium-avatar-wrapper">
+                                        <span class="rank-badge">${numericBadge}</span>
+                                        <div class="podium-avatar">
+                                            <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div class="fw-bold small text-dark text-truncate px-1">${staffName}</div>
+                                    <div class="text-orange fw-bold small m-0" style="font-weight:800 !important;">${totalCount} Projs</div>
+                                    <div class="text-muted" style="font-size:0.65rem; font-weight:700;">${sharePercentage}%</div>
+                                </div>
+                            `);
+                        }
+                    });
+
+                    // Render Standard Detailed Standings List View
+                    const listRemainingMembers = descendingSortedRanks.slice(3);
+                    if (listRemainingMembers.length === 0) {
+                        standardListContainerNode.append(`
+                            <div class="text-center py-5 text-muted font-italic" style="font-size:0.85rem; font-weight:500;">
+                                No secondary designer logs reported in this timeline bracket.
+                            </div>`);
+                    } else {
+                        listRemainingMembers.forEach((record, arrayIndex) => {
+                            const [staffName, totalCount] = record;
+                            const sharePercentage = scopeAggregationTotal > 0 ? ((totalCount / scopeAggregationTotal) * 100).toFixed(1) : "0.0";
+                            const structuralRankValue = arrayIndex + 4;
+
+                            standardListContainerNode.append(`
+                                <div class="ranking-list-item">
+                                    <div class="rank-num-label">#${structuralRankValue}</div>
+                                    <div class="rank-common-avatar">
+                                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-grow-1 fw-bold text-dark" style="font-size:0.85rem;">${staffName}</div>
+                                    <div class="text-end">
+                                        <span class="fw-bold text-orange me-2" style="font-weight:800 !important; font-size:0.85rem;">${totalCount} Projects</span>
+                                        <span class="badge bg-light text-secondary border fw-bold" style="font-size:0.7rem; padding: 4px 8px; border-radius:6px;">${sharePercentage}%</span>
+                                    </div>
+                                </div>
+                            `);
+                        });
+                    }
+                }
+
+                function renderLargeInteractiveCalendarView() {
+                    const targetDaysRootContainerElement = $('#calendar-days-root');
+                    targetDaysRootContainerElement.empty();
+                    const viewportFocusedYearValue = calendarFocusTrackingTimestamp.getFullYear();
+                    const viewportFocusedMonthValue = calendarFocusTrackingTimestamp.getMonth();
+                    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                    $('#calendar-month-year-label').text(`${monthNames[viewportFocusedMonthValue]} ${viewportFocusedYearValue}`);
+
+                    const firstDayOffset = new Date(viewportFocusedYearValue, viewportFocusedMonthValue, 1).getDay();
+                    const totalDays = new Date(viewportFocusedYearValue, viewportFocusedMonthValue + 1, 0).getDate();
+
+                    for (let i = 0; i < firstDayOffset; i++) {
+                        targetDaysRootContainerElement.append('<div class="calendar-day empty"></div>');
+                    }
+
+                    const selectedYear = $('#year-filter').val();
+                    const selectedMonth = $('#month-filter').val();
+                    const frequencyMap = {};
+
+                    masterSpreadsheetRecordsDataset.forEach(row => {
+                        const { year, month, fullDate } = parseAbsoluteExcelDateStringFields(row.deadline);
+                        if (activeFilterMode === 'standard') {
+                            if (selectedYear !== 'all' && year !== selectedYear) return;
+                            if (selectedMonth !== 'all' && month !== selectedMonth) return;
+                        } else {
+                            const startDate = $('#start-date-input').val();
+                            const endDate = $('#end-date-input').val();
+                            if (startDate && fullDate < startDate) return;
+                            if (endDate && fullDate > endDate) return;
+                        }
+                        if (fullDate) {
+                            frequencyMap[fullDate] = (frequencyMap[fullDate] || 0) + 1;
+                        }
+                    });
+
+                    const startDate = $('#start-date-input').val();
+                    const endDate = $('#end-date-input').val();
+                    for (let day = 1; day <= totalDays; day++) {
+                        const paddedDay = String(day).padStart(2, '0');
+                        const paddedMonth = String(viewportFocusedMonthValue + 1).padStart(2, '0');
+                        const dateKey = `${viewportFocusedYearValue}-${paddedMonth}-${paddedDay}`;
+                        let classes = '';
+                        if (currentDayFocusExplicitKeyStamp === dateKey) {
+                            classes += ' active';
+                        }
+                        if (activeFilterMode === 'daterange' && startDate && endDate && dateKey >= startDate && dateKey <= endDate) {
+                            classes += ' range-selected';
+                        }
+                        let counter = '';
+                        if (frequencyMap[dateKey]) {
+                            counter = `<span class="project-counter-dot">${frequencyMap[dateKey]}</span>`;
+                        }
+                        targetDaysRootContainerElement.append(`
+                            <div class="calendar-day${classes}" data-date="${dateKey}">
+                                ${day}
+                                ${counter}
+                            </div>
+                        `);
+                    }
+
+                    $('.calendar-day:not(.empty)').on('click', function () {
+                        if (activeFilterMode === 'daterange') return;
+                        const date = $(this).data('date');
+                        if ($(this).hasClass('active')) {
+                            $(this).removeClass('active');
+                            currentDayFocusExplicitKeyStamp = null;
+                        } else {
+                            $('.calendar-day').removeClass('active');
+                            $(this).addClass('active');
+                            currentDayFocusExplicitKeyStamp = date;
+                        }
+                        processAggregatedCalculationRoutines();
+                    });
+                }
+
+                function processAggregatedCalculationRoutines() {
+                    if (!masterSpreadsheetRecordsDataset.length) return;
+                    const selectedFilterYearToken = $('#year-filter').val();
+                    const selectedFilterMonthToken = $('#month-filter').val();
+                    if (currentDayFocusExplicitKeyStamp || selectedStaffFilterToken !== 'all' ||
+                        (activeFilterMode === 'standard' && (selectedFilterYearToken !== 'all' || selectedFilterMonthToken !== 'all')) ||
+                        (activeFilterMode === 'daterange')) {
+                        $('#clear-filters-btn').removeClass('d-none');
+                    } else {
+                        $('#clear-filters-btn').addClass('d-none');
+                    }
+
+                    if (currentDayFocusExplicitKeyStamp) {
+                        $('#current-filter-status').text(`Timeline Focus Locked Day Frame: [ ${currentDayFocusExplicitKeyStamp} ]`).removeClass('text-dark').addClass('text-orange fw-bold');
+                    } else if (activeFilterMode === 'daterange') {
+                        $('#current-filter-status').text(`Range Block Scope: ${$('#start-date-input').val()} to ${$('#end-date-input').val()}`).removeClass('text-orange').addClass('text-dark fw-bold');
+                    } else if (selectedFilterYearToken !== 'all' || selectedFilterMonthToken !== 'all') {
+                        let textScopeInfoLabel = "Allocation Metrics Filter: ";
+                        if (selectedFilterYearToken !== 'all') textScopeInfoLabel += ` Year ${selectedFilterYearToken}`;
+                        if (selectedFilterMonthToken !== 'all') textScopeInfoLabel += ` Month (${selectedFilterMonthToken})`;
+                        $('#current-filter-status').text(textScopeInfoLabel).removeClass('text-orange').addClass('text-dark fw-bold');
+                    } else {
+                        $('#current-filter-status').text("Workflow Matrix: Tracking Combined Core Dataset Logs").removeClass('text-orange').addClass('text-dark fw-bold');
+                    }
+
+                    let singleDesignersChartFrequencyMap = {};
+                    let combinedTeamsChartFrequencyMap = {};
+                    let countSingleDeadlinesSum = 0;
+                    let countCombinedDeadlinesSum = 0;
+                    let calculatedTotalInvolvementEffortSum = 0.00;
+                    globallyCalculatedRowsFilteredArray = [];
+
+                    masterSpreadsheetRecordsDataset.forEach(row => {
+                        const { year, month, fullDate } = parseAbsoluteExcelDateStringFields(row.deadline);
+                        if (currentDayFocusExplicitKeyStamp) {
+                            if (fullDate !== currentDayFocusExplicitKeyStamp) return;
+                        } else {
+                            if (activeFilterMode === 'standard') {
+                                if (selectedFilterYearToken !== 'all' && year !== selectedFilterYearToken) return;
+                                if (selectedFilterMonthToken !== 'all' && month !== selectedFilterMonthToken) return;
+                            } else {
+                                let startStr = $('#start-date-input').val();
+                                let endStr = $('#end-date-input').val();
+                                if (startStr && fullDate < startStr) return;
+                                if (endStr && fullDate > endStr) return;
+                            }
+                        }
+
+                        let rawDesignerStringLineContent = row.designer ? String(row.designer).trim() : '';
+                        if (!rawDesignerStringLineContent || rawDesignerStringLineContent.toLowerCase() === 'none' || rawDesignerStringLineContent.toLowerCase() === 'null') {
+                            rawDesignerStringLineContent = "—";
+                        }
+                        let isCompositeTeamRow = rawDesignerStringLineContent.includes('&');
+                        let normalizedKey = rawDesignerStringLineContent !== "—" ? resolveTeamTokenGroupSignatures(rawDesignerStringLineContent) : "Unassigned";
+
+                        if (selectedStaffFilterToken !== 'all') {
+                            let constituents = rawDesignerStringLineContent.split('&').map(n => cleanIndividualNameStrings(n).toLowerCase());
+                            if (!constituents.includes(selectedStaffFilterToken.toLowerCase())) {
+                                return;
+                            }
+                        }
+
+                        if (normalizedKey !== "Unassigned") {
+                            if (isCompositeTeamRow) {
+                                combinedTeamsChartFrequencyMap[normalizedKey] = (combinedTeamsChartFrequencyMap[normalizedKey] || 0) + 1;
+                                countCombinedDeadlinesSum++;
+                                let staffCount = normalizedKey.split('&').length;
+                                calculatedTotalInvolvementEffortSum += (1.00 / (staffCount > 0 ? staffCount : 2));
+                            } else {
+                                singleDesignersChartFrequencyMap[normalizedKey] = (singleDesignersChartFrequencyMap[normalizedKey] || 0) + 1;
+                                countSingleDeadlinesSum++;
+                                calculatedTotalInvolvementEffortSum += 1.00;
+                            }
+                        }
+
+                        if (activeTab === 'individual' && isCompositeTeamRow) return;
+                        if (activeTab === 'combined' && !isCompositeTeamRow) return;
+                        globallyCalculatedRowsFilteredArray.push(row);
+                    });
+
+                    $('#stat-total').text(countSingleDeadlinesSum + countCombinedDeadlinesSum);
+                    $('#stat-designers').text(countSingleDeadlinesSum);
+                    $('#stat-combined').text(countCombinedDeadlinesSum);
+                    const totalProjects = countSingleDeadlinesSum + countCombinedDeadlinesSum;
+                    const effortPercentage = totalProjects > 0 ? (calculatedTotalInvolvementEffortSum / totalProjects) * 100 : 0;
+                    $('#stat-effort').text(effortPercentage.toFixed(2) + "%");
+
+                    currentPageIndex = 1;
+                    buildPaginatedTableWorkspaceLayout();
+                    computeAndRenderLeaderboardGrid();
+
+                    const individualItemsCount = Object.keys(singleDesignersChartFrequencyMap).length;
+                    const combinedItemsCount = Object.keys(combinedTeamsChartFrequencyMap).length;
+                    if (individualItemsCount > 0 || combinedItemsCount > 0) {
+                        $('#individual-placeholder').addClass('d-none');
+                        $('#combined-placeholder').addClass('d-none');
+                        $('#individual-card-container').removeClass('d-none');
+                        $('#combined-card-container').removeClass('d-none');
+                        const individualSorted = Object.entries(singleDesignersChartFrequencyMap).sort((a, b) => b[1] - a[1]);
+                        const combinedSorted = Object.entries(combinedTeamsChartFrequencyMap).sort((a, b) => b[1] - a[1]);
+                        buildSplitWorkloadsDualChartsModules(
+                            individualSorted.map(t => t[0]), individualSorted.map(t => t[1]),
+                            combinedSorted.map(t => t[0]), combinedSorted.map(t => t[1])
+                        );
+                    } else {
+                        $('#individual-card-container,#combined-card-container').addClass('d-none');
+                        $('#individual-placeholder').removeClass('d-none');
+                        $('#combined-placeholder').removeClass('d-none');
+                    }
+                }
+
+                function buildPaginatedTableWorkspaceLayout() {
+                    const targetTableRowsInsertionContainerElement = $('#dashboard-rows-root');
+                    targetTableRowsInsertionContainerElement.empty();
+                    const recordsTotalLength = globallyCalculatedRowsFilteredArray.length;
+                    if (recordsTotalLength === 0) {
+                        targetTableRowsInsertionContainerElement.append('<tr><td colspan="5" class="py-5 text-center text-muted font-italic fw-500">No project tracking rows exist matching your selected filter parameters.</td></tr>');
+                        $('#table-pagination-footer').addClass('d-none');
+                        return;
+                    }
+                    $('#table-pagination-footer').removeClass('d-none');
+                    const totalCalculatedPagesCount = Math.ceil(recordsTotalLength / rowsCountPerPageLimit);
+                    const itemStartIndexOffset = (currentPageIndex - 1) * rowsCountPerPageLimit;
+                    const itemEndIndexOffset = Math.min(itemStartIndexOffset + rowsCountPerPageLimit, recordsTotalLength);
+                    $('#pagination-info-text').text(`Showing ${itemStartIndexOffset + 1} to ${itemEndIndexOffset} of ${recordsTotalLength} entries`);
+                    const visualPageSliceList = globallyCalculatedRowsFilteredArray.slice(itemStartIndexOffset, itemEndIndexOffset);
+                    visualPageSliceList.forEach(row => {
+                        const parsedDeadlineDateObj = parseAbsoluteExcelDateStringFields(row.deadline);
+                        const parsedDeliveryDateObj = parseAbsoluteExcelDateStringFields(row.deliveryDate);
+                        const projectTitleText = row.projectName ? String(row.projectName).trim() : '—';
+                        const designerIdentityText = row.designer ? resolveTeamTokenGroupSignatures(String(row.designer)) : '—';
+                        const developerCoderIdentityText = row.coder ? String(row.coder).trim() : '—';
+                        const rowTemplateMarkupHTMLString = `
+                            <tr class="transition">
+                                <td class="py-3.5 px-4 text-dark fw-bold" style="font-weight:700 !important; font-size:0.85rem;">${projectTitleText}</td>
+                                <td class="py-3.5 px-4 text-orange font-mono text-nowrap" style="font-weight:600 !important;">${parsedDeadlineDateObj.visualDate}</td>
+                                <td class="py-3.5 px-4 text-success font-mono text-nowrap" style="font-weight:600 !important;">${parsedDeliveryDateObj.visualDate}</td>
+                                <td class="py-3.5 px-4 text-designer-highlight text-nowrap">${designerIdentityText || '—'}</td>
+                                <td class="py-3.5 px-4 text-end text-primary-emphasis font-mono fw-bold text-nowrap" style="font-weight:700 !important;">${developerCoderIdentityText || '—'}</td>
+                            </tr>
+                        `;
+                        targetTableRowsInsertionContainerElement.append(rowTemplateMarkupHTMLString);
+                    });
+
+                    const targetControlsContainer = $('#pagination-controls-root');
+                    targetControlsContainer.empty();
+                    const prevDisabledCSS = (currentPageIndex === 1) ? " disabled" : "";
+                    targetControlsContainer.append(`<li class="page-item${prevDisabledCSS}"><a class="page-link" href="#" data-page="${currentPageIndex - 1}">&laquo;</a></li>`);
+                    for (let pIdx = 1; pIdx <= totalCalculatedPagesCount; pIdx++) {
+                        const activeStateClass = (pIdx === currentPageIndex) ? " active" : "";
+                        targetControlsContainer.append(`<li class="page-item${activeStateClass}"><a class="page-link" href="#" data-page="${pIdx}">${pIdx}</a></li>`);
+                    }
+                    const nextDisabledCSS = (currentPageIndex === totalCalculatedPagesCount) ? " disabled" : "";
+                    targetControlsContainer.append(`<li class="page-item${nextDisabledCSS}"><a class="page-link" href="#" data-page="${currentPageIndex + 1}">&raquo;</a></li>`);
+
+                    $('#pagination-controls-root .page-link').on('click', function (e) {
+                        e.preventDefault();
+                        const requestedPageIdx = parseInt($(this).data('page'));
+                        if (requestedPageIdx >= 1 && requestedPageIdx <= totalCalculatedPagesCount) {
+                            currentPageIndex = requestedPageIdx;
+                            buildPaginatedTableWorkspaceLayout();
+                        }
+                    });
+                }
+
+                function buildSplitWorkloadsDualChartsModules(indLabels, indValues, teamLabels, teamValues) {
+                    if (individualChartInstance) individualChartInstance.destroy();
+                    if (combinedChartInstance) combinedChartInstance.destroy();
+
+                    const ctxInd = document.getElementById('individual-chart-canvas').getContext('2d');
+                    const gradientOrange = ctxInd.createLinearGradient(0, 0, 0, 240);
+                    gradientOrange.addColorStop(0, 'rgba(253, 126, 20, 0.85)');
+                    gradientOrange.addColorStop(1, 'rgba(253, 126, 20, 0.15)');
+                    individualChartInstance = new Chart(ctxInd, {
+                        type: 'bar',
+                        data: {
+                            labels: indLabels,
+                            datasets: [{
+                                data: indValues,
+                                backgroundColor: gradientOrange,
+                                borderColor: '#fd7e14',
+                                borderWidth: 1.5,
+                                borderRadius: 6,
+                                maxBarThickness: 24
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { ticks: { font: { family: 'Montserrat', size: 10, weight: '700' } }, grid: { display: false } },
+                                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'Montserrat', size: 10 } }, grid: { color: '#f1f5f9' } }
+                            }
+                        }
+                    });
+
+                    const ctxTeam = document.getElementById('combined-chart-canvas').getContext('2d');
+                    const gradientBlue = ctxTeam.createLinearGradient(0, 0, 0, 240);
+                    gradientBlue.addColorStop(0, 'rgba(13, 110, 253, 0.85)');
+                    gradientBlue.addColorStop(1, 'rgba(13, 110, 253, 0.15)');
+                    combinedChartInstance = new Chart(ctxTeam, {
+                        type: 'bar',
+                        data: {
+                            labels: teamLabels,
+                            datasets: [{
+                                data: teamValues,
+                                backgroundColor: gradientBlue,
+                                borderColor: '#0d6efd',
+                                borderWidth: 1.5,
+                                borderRadius: 6,
+                                maxBarThickness: 24
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45, font: { family: 'Montserrat', size: 9, weight: '700' } }, grid: { display: false } },
+                                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'Montserrat', size: 10 } }, grid: { color: '#f1f5f9' } }
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
